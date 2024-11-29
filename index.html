@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>节点猴DIY</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            background-color: #1E1E1E;
+            color: #FFFFFF;
+            font-family: Arial, sans-serif;
+        }
+        iframe {
+            border: none;
+            width: 100%;
+            display: block; /* Prevent any gaps */
+        }
+        #header {
+            height: 170px;
+        }
+        #content {
+            height: calc(100% - 170px);
+            /* Force the scrollbar to always be visible to prevent layout shifts */
+            overflow-y: scroll;
+            /* For Firefox */
+            scrollbar-width: thin;
+            /* For Webkit browsers */
+            &::-webkit-scrollbar {
+                width: 12px;
+            }
+            &::-webkit-scrollbar-track {
+                background: #1E1E1E;
+            }
+            &::-webkit-scrollbar-thumb {
+                background-color: #333;
+                border-radius: 6px;
+                border: 3px solid #1E1E1E;
+            }
+        }
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            font-size: 18px;
+            color: #FFFFFF;
+        }
+    </style>
+</head>
+<body>
+    <iframe id="header" src="about:blank" scrolling="no"></iframe>
+    <iframe id="content" src="about:blank" allow="same-origin" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"></iframe>
+
+    <script>
+        function loadFrame(id, url) {
+            return new Promise((resolve, reject) => {
+                const frame = document.getElementById(id);
+                frame.onload = () => {
+                    console.log(`Frame ${id} loaded successfully`);
+                    resolve();
+                };
+                frame.onerror = () => {
+                    console.error(`Failed to load ${id}`);
+                    reject(new Error(`Failed to load ${id}`));
+                };
+                frame.src = url;
+            });
+        }
+
+        async function loadContent() {
+            try {
+                await loadFrame('header', 'https://337a66d9c3661a4d7ca59783ba770655.ipfs.4everland.link/ipfs/bafkreiflvn4gws6xvbcr64qcgfqtgb5qcskdphwgmnhoce2kykxzm5ajmq');
+                await loadFrame('content', 'https://337a66d9c3661a4d7ca59783ba770655.ipfs.4everland.link/ipfs/bafkreiforfe24efjkpoow23c4dgph4t34gnwgs6ti4jxo36oqddr7bqbbe');
+                
+                window.addEventListener('message', handleMessage, false);
+                console.log('Message event listener added');
+            } catch (error) {
+                console.error('Error loading frames:', error);
+                document.body.innerHTML = `<div class="loading">加载失败，请刷新页面重试</div>`;
+            }
+        }
+
+        function handleMessage(event) {
+            if (event.source === document.getElementById('content').contentWindow) {
+                if (event.data.type === 'download') {
+                    console.log('Received download request from iframe');
+                    const link = document.createElement('a');
+                    link.href = event.data.url;
+                    link.download = event.data.filename || 'avatar.png';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    // Clean up the object URL
+                    setTimeout(() => {
+                        URL.revokeObjectURL(event.data.url);
+                        console.log('Object URL revoked');
+                    }, 100);
+
+                    // Notify the iframe that download is complete
+                    document.getElementById('content').contentWindow.postMessage({
+                        type: 'downloadComplete'
+                    }, '*');
+                }
+            }
+        }
+
+        // Use requestIdleCallback to load content when the browser is idle
+        if ('requestIdleCallback' in window) {
+            requestIdleCallback(() => loadContent());
+        } else {
+            // Fallback to setTimeout if requestIdleCallback is not supported
+            setTimeout(loadContent, 0);
+        }
+    </script>
+</body>
+</html>
+
